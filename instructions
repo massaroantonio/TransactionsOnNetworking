@@ -1,0 +1,19 @@
+
+Upload changes
+**************
+git add filename
+git commit -m 'message'
+git push origin master
+
+Download changes
+****************
+git pull
+
+switch to python 3.6 environment:
+*********************************
+activate:   source activate py36
+deactivate: source deactivate
+
+save ipython notebook to script:
+********************************
+jupyter nbconvert --to script <notebookname>.ipynb 
