@@ -72,24 +72,10 @@ def getFatTree(K):
 
 # In[3]:
 
-
-def residual_band(C,paths):
-    '''Computes the residual bandwidth for all input paths given the residual bandwidth'''
-    
-    res_band =[]
-    for ii in range(len(paths)):
-        vec = []
-        for tt in paths[ii]:
-            vec.append(C[tt])
-        res_band.append(np.min(vec))
-
-    return res_band
-
 def intersect(a, b):
     return list(set(a) & set(b))
 
-
-def max_min_allocation(C,paths, debug_flag=0):
+def max_min_allocation(C, paths, debug_flag=0):
     '''Computes the max-min allocation in a capacitated graph G for all input paths'''
     
     C = np.array(C, dtype=float)
@@ -130,8 +116,8 @@ def max_min_allocation(C,paths, debug_flag=0):
         bottleneck_flow = np.nanmin(vec) # maximum amount of flow increment for not bottlenecked flows
         bottleneck_links = np.where(vec==bottleneck_flow)[0] # links with no capacity left
         for ii in range(len(paths_not_bottlenecked)):
-                if paths_not_bottlenecked[ii]:
-                    max_min_rates[ii] += bottleneck_flow
+            if paths_not_bottlenecked[ii]:
+                max_min_rates[ii] += bottleneck_flow
         
         for ii, val in paths[paths_not_bottlenecked].iteritems():
             C[val] -= bottleneck_flow
@@ -139,7 +125,7 @@ def max_min_allocation(C,paths, debug_flag=0):
                 paths_not_bottlenecked[ii] = False
                 for tt in val:
                     n_paths_per_edge[tt] -= 1
-        # import pdb; pdb.set_trace() # DEBUG
+        
         it += 1
         
         if(debug_flag):
@@ -152,6 +138,71 @@ def max_min_allocation(C,paths, debug_flag=0):
     
     return max_min_rates
 
+
+def intersect_tuple(a, b):
+    for i1 in range(len(a)):
+        for i2 in range(len(b)):
+            if a[i1]==b[i2]:
+                return True
+    return False
+
+
+def max_min_allocation_dict(C, paths):
+    '''Computes the max-min allocation in a capacitated graph G for all input paths'''
+    
+    C = pd.Series(C)
+    paths1 = []
+
+    for t1 in range(len(paths)):
+        p2 = []
+        for t2 in range(len(paths[t1])-1):
+            p2.append((paths[t1][t2],paths[t1][t2+1]))
+        paths1.append(p2)
+
+    paths1 = pd.Series(paths1)
+    paths = paths1
+
+
+    # check input consistency
+    if (np.sum(C.values<0)>0):
+        raise ValueError('Capacity must be nonnegative.')
+
+    # Initialization
+    max_min_rates = np.zeros(len(paths))
+
+    N = len(C) # n. edges
+    n_paths_per_edge = pd.Series(data= np.zeros(len(C),dtype=int), index=C.keys()) # n_paths_per_edge[i] = n. of paths passing through edge i
+    for ii,val in enumerate(paths):
+        for tt in val:
+            n_paths_per_edge[tt] += 1
+
+    paths_not_bottlenecked = [True for ii in range(len(paths))] #np.ones([1,len(paths)],dtype=bool)
+
+    # Max-min algorithm
+    it = 0;
+
+    while np.sum(paths_not_bottlenecked)>0:
+
+        vec = pd.Series(data= np.array([float("Inf") for ii in range(len(C))]), index=C.keys())
+        bool_vec = (n_paths_per_edge>0)
+        vec[bool_vec] = C[bool_vec] / n_paths_per_edge[bool_vec]
+
+        bottleneck_flow = np.nanmin(vec) # maximum amount of flow increment for not bottlenecked flows
+        bottleneck_links = vec[vec == bottleneck_flow].index # links with no capacity left
+        for ii in range(len(paths_not_bottlenecked)):
+            if paths_not_bottlenecked[ii]:
+                max_min_rates[ii] += bottleneck_flow
+
+        for ii, val in paths[paths_not_bottlenecked].iteritems():
+            C[val] -= bottleneck_flow
+            if intersect_tuple(val,bottleneck_links):
+                paths_not_bottlenecked[ii] = False
+                for tt in val:
+                    n_paths_per_edge[tt] -= 1
+
+        it += 1
+
+    return max_min_rates
 
 # In[4]:
 
@@ -271,7 +322,7 @@ def ECMPFromDict(demands,Dict):
         else:
             l=len(Dict[(d,s)])-1
             path=Dict[(d,s)][random.randint(0,l)][::-1]
-            paths.append(np.array(path))
+            paths.append(list(path))
     return np.array(paths)
 
 
